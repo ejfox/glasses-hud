@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@nuxt/devtools": "latest",
+    "@vueuse/core": "^13.6.0",
+    "chance.js": "^0.0.1",
     "nuxt": "^3.13.0",
     "vue": "latest"
   },

@@ -75,6 +75,7 @@
 </template>
 
 <script setup>
+import { useRafFn } from '@vueuse/core'
 const selectedEye = ref('left')
 const selectedPosition = ref('top-left')
 const widgetType = ref('text')
@@ -82,6 +83,9 @@ const widgetText = ref('')
 const leftWidgets = ref([])
 const rightWidgets = ref([])
 let widgetIdCounter = 0
+
+// Store decibel values for each widget
+const decibelValues = ref(new Map())
 
 const getPosition = (position) => {
   const positions = {
@@ -114,16 +118,47 @@ const addWidget = () => {
 }
 
 const getDecibelLevel = (widgetId) => {
-  // Simple oscillator: sin wave between 0-100
-  const time = Date.now() / 1000
-  const baseLevel = (Math.sin(time * 2 + widgetId) + 1) * 50
-  // Add some noise
-  const noise = Math.random() * 20 - 10
-  return Math.max(0, Math.min(100, baseLevel + noise))
+  return decibelValues.value.get(widgetId) || 0
 }
+
+// Update decibel values every second
+const updateDecibelValues = () => {
+  const allWidgets = [...leftWidgets.value, ...rightWidgets.value]
+  allWidgets.forEach(widget => {
+    if (widget.type === 'decibel') {
+      // Generate realistic decibel reading (30-90 dB range)
+      const baseLevel = Math.floor(Math.random() * 61) + 30 // 30-90
+      // Add some fluctuation
+      const fluctuation = Math.floor(Math.random() * 11) - 5 // -5 to +5
+      const finalLevel = Math.max(0, Math.min(100, baseLevel + fluctuation))
+      
+      // Convert to percentage for the bar
+      const percentage = finalLevel
+      decibelValues.value.set(widget.id, percentage)
+    }
+  })
+}
+
+// Update every second
+setInterval(updateDecibelValues, 1000)
+
+// Also use RAF for smooth updates
+const { pause, resume } = useRafFn(() => {
+  // Slight random fluctuations between second updates
+  const allWidgets = [...leftWidgets.value, ...rightWidgets.value]
+  allWidgets.forEach(widget => {
+    if (widget.type === 'decibel') {
+      const currentValue = decibelValues.value.get(widget.id) || 0
+      const microFluctuation = (Math.random() - 0.5) * 4 // -2 to +2
+      const newValue = Math.max(0, Math.min(100, currentValue + microFluctuation))
+      decibelValues.value.set(widget.id, newValue)
+    }
+  })
+})
 
 const clearAll = () => {
   leftWidgets.value = []
   rightWidgets.value = []
+  decibelValues.value.clear()
 }
 </script>
