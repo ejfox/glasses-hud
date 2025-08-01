@@ -1,0 +1,24 @@
+{
+  "name": "four-corners",
+  "description": "Text in all four corners",
+  "left": {
+    "topLeft": {
+      "type": "text",
+      "content": "14:32:05"
+    },
+    "bottomLeft": {
+      "type": "text",
+      "content": "60fps"
+    }
+  },
+  "right": {
+    "topRight": {
+      "type": "text",
+      "content": "DEBUG"
+    },
+    "bottomRight": {
+      "type": "text",
+      "content": "87MB"
+    }
+  }
+}

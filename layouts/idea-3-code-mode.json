@@ -1,0 +1,42 @@
+{
+  "name": "idea-3-code-mode",
+  "description": "Coding session ambient data",
+  "left": {
+    "topLeft": {
+      "type": "text",
+      "content": "14:32:05.847"
+    },
+    "bottomLeft": {
+      "type": "bars",
+      "width": 16,
+      "height": 12
+    },
+    "edgeLeft": {
+      "type": "text",
+      "content": "CPU"
+    }
+  },
+  "right": {
+    "topRight": {
+      "type": "text",
+      "content": "87 WPM"
+    },
+    "center": {
+      "type": "dots",
+      "width": 12,
+      "height": 12
+    },
+    "bottomRight": {
+      "type": "text",
+      "content": "2.3GB"
+    },
+    "edgeRight": {
+      "type": "text",
+      "content": "MEM"
+    },
+    "edgeBottom": {
+      "type": "text",
+      "content": "FLOW STATE"
+    }
+  }
+}

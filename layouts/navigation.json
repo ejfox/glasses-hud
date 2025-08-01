@@ -1,0 +1,16 @@
+{
+  "name": "center-focus",
+  "description": "Text centered in lenses",
+  "left": {
+    "center": {
+      "type": "text",
+      "content": "→ 0.3mi"
+    }
+  },
+  "right": {
+    "center": {
+      "type": "text",
+      "content": "MAIN ST"
+    }
+  }
+}

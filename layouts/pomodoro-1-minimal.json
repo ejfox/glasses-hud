@@ -1,0 +1,21 @@
+{
+  "name": "pomodoro-1-minimal",
+  "description": "Clean timer with WPM bar",
+  "right": {
+    "topRight": {
+      "type": "text",
+      "content": "24:17"
+    },
+    "bottomRight": {
+      "type": "decibel-meter",
+      "width": 60,
+      "height": 4,
+      "value": 45,
+      "max": 120
+    },
+    "edgeBottom": {
+      "type": "text",
+      "content": "WPM 60s"
+    }
+  }
+}

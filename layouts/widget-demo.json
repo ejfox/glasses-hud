@@ -1,0 +1,38 @@
+{
+  "name": "widget-demo",
+  "description": "Visual widgets demo",
+  "left": {
+    "topLeft": {
+      "type": "text",
+      "content": "DEMO"
+    },
+    "center": {
+      "type": "waveform",
+      "width": 32,
+      "height": 8
+    }
+  },
+  "right": {
+    "topRight": {
+      "type": "text", 
+      "content": "WIDGETS"
+    },
+    "bottomCenter": {
+      "type": "decibel-meter",
+      "width": 64,
+      "height": 4,
+      "value": 65,
+      "max": 100
+    },
+    "bottomLeft": {
+      "type": "bars",
+      "width": 24,
+      "height": 16
+    },
+    "bottomRight": {
+      "type": "dots",
+      "width": 16,
+      "height": 16
+    }
+  }
+}

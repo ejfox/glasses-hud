@@ -1,0 +1,19 @@
+{
+  "name": "pomodoro-4-dots",
+  "description": "Dot matrix WPM visualization",
+  "right": {
+    "topRight": {
+      "type": "text",
+      "content": "24:17"
+    },
+    "center": {
+      "type": "dots",
+      "width": 24,
+      "height": 24
+    },
+    "bottomRight": {
+      "type": "text",
+      "content": "67 WPM"
+    }
+  }
+}

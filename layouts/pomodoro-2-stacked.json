@@ -1,0 +1,19 @@
+{
+  "name": "pomodoro-2-stacked",
+  "description": "Vertical stack with number",
+  "right": {
+    "topCenter": {
+      "type": "text",
+      "content": "24:17"
+    },
+    "center": {
+      "type": "text",
+      "content": "67 WPM"
+    },
+    "bottomCenter": {
+      "type": "bars",
+      "width": 32,
+      "height": 8
+    }
+  }
+}
