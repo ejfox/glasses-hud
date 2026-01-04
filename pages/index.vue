@@ -145,10 +145,14 @@ const clearAll = () => {
   decibelValues.value.clear()
 }
 
+// Animation control refs
+let intervalId = null
+let rafPause = null
+
 // Only run animations on client-side
 onMounted(() => {
   // Update every second
-  const intervalId = setInterval(updateDecibelValues, 1000)
+  intervalId = setInterval(updateDecibelValues, 1000)
   
   // Also use RAF for smooth updates
   const { pause } = useRafFn(() => {
@@ -163,11 +167,12 @@ onMounted(() => {
       }
     })
   })
-  
-  // Cleanup on unmount
-  onUnmounted(() => {
-    clearInterval(intervalId)
-    pause()
-  })
+  rafPause = pause
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+  if (rafPause) rafPause()
 })
 </script>
