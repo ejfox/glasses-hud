@@ -148,10 +148,10 @@ const clearAll = () => {
 // Only run animations on client-side
 onMounted(() => {
   // Update every second
-  setInterval(updateDecibelValues, 1000)
+  const intervalId = setInterval(updateDecibelValues, 1000)
   
   // Also use RAF for smooth updates
-  useRafFn(() => {
+  const { pause } = useRafFn(() => {
     // Slight random fluctuations between second updates
     const allWidgets = [...leftWidgets.value, ...rightWidgets.value]
     allWidgets.forEach(widget => {
@@ -162,6 +162,12 @@ onMounted(() => {
         decibelValues.value.set(widget.id, newValue)
       }
     })
+  })
+  
+  // Cleanup on unmount
+  onUnmounted(() => {
+    clearInterval(intervalId)
+    pause()
   })
 })
 </script>
