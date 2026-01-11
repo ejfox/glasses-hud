@@ -139,26 +139,40 @@ const updateDecibelValues = () => {
   })
 }
 
-// Update every second
-setInterval(updateDecibelValues, 1000)
-
-// Also use RAF for smooth updates
-const { pause, resume } = useRafFn(() => {
-  // Slight random fluctuations between second updates
-  const allWidgets = [...leftWidgets.value, ...rightWidgets.value]
-  allWidgets.forEach(widget => {
-    if (widget.type === 'decibel') {
-      const currentValue = decibelValues.value.get(widget.id) || 0
-      const microFluctuation = (Math.random() - 0.5) * 4 // -2 to +2
-      const newValue = Math.max(0, Math.min(100, currentValue + microFluctuation))
-      decibelValues.value.set(widget.id, newValue)
-    }
-  })
-})
-
 const clearAll = () => {
   leftWidgets.value = []
   rightWidgets.value = []
   decibelValues.value.clear()
 }
+
+// Animation control refs
+let intervalId = null
+let rafPause = null
+
+// Only run animations on client-side
+onMounted(() => {
+  // Update every second
+  intervalId = setInterval(updateDecibelValues, 1000)
+  
+  // Also use RAF for smooth updates
+  const { pause } = useRafFn(() => {
+    // Slight random fluctuations between second updates
+    const allWidgets = [...leftWidgets.value, ...rightWidgets.value]
+    allWidgets.forEach(widget => {
+      if (widget.type === 'decibel') {
+        const currentValue = decibelValues.value.get(widget.id) || 0
+        const microFluctuation = (Math.random() - 0.5) * 4 // -2 to +2
+        const newValue = Math.max(0, Math.min(100, currentValue + microFluctuation))
+        decibelValues.value.set(widget.id, newValue)
+      }
+    })
+  })
+  rafPause = pause
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+  if (rafPause) rafPause()
+})
 </script>
