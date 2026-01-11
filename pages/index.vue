@@ -128,8 +128,9 @@ const addWidget = () => {
   
   // Add position data based on mode
   if (selectedPosition.value === 'custom') {
-    widget.x = customX.value
-    widget.y = customY.value
+    // Clamp X and Y values to valid ranges (lens is 300x200)
+    widget.x = Math.max(0, Math.min(300, customX.value))
+    widget.y = Math.max(0, Math.min(200, customY.value))
   } else {
     widget.position = selectedPosition.value
   }
