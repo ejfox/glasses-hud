@@ -4,7 +4,7 @@
     <div style="height: 40vh; background: black; display: flex; justify-content: center; align-items: center; gap: 20px;">
       <!-- Left Lens -->
       <div style="width: 300px; height: 200px; border: 2px solid #333; border-radius: 20px; position: relative;">
-        <div v-for="(widget, key) in leftWidgets" :key="key" :style="getPosition(widget.position)" style="position: absolute; color: white; font-family: monospace; font-size: 12px;">
+        <div v-for="(widget, key) in leftWidgets" :key="key" :style="getPosition(widget)" style="position: absolute; color: white; font-family: monospace; font-size: 12px;">
           <div v-if="widget.type === 'text'">{{widget.text}}</div>
           <div v-else-if="widget.type === 'decibel'" style="width: 64px; height: 4px; background: #333; position: relative;">
             <div :style="`width: ${getDecibelLevel(widget.id)}%; height: 100%; background: white;`"></div>
@@ -17,7 +17,7 @@
       
       <!-- Right Lens -->
       <div style="width: 300px; height: 200px; border: 2px solid #333; border-radius: 20px; position: relative;">
-        <div v-for="(widget, key) in rightWidgets" :key="key" :style="getPosition(widget.position)" style="position: absolute; color: white; font-family: monospace; font-size: 12px;">
+        <div v-for="(widget, key) in rightWidgets" :key="key" :style="getPosition(widget)" style="position: absolute; color: white; font-family: monospace; font-size: 12px;">
           <div v-if="widget.type === 'text'">{{widget.text}}</div>
           <div v-else-if="widget.type === 'decibel'" style="width: 64px; height: 4px; background: #333; position: relative;">
             <div :style="`width: ${getDecibelLevel(widget.id)}%; height: 100%; background: white;`"></div>
@@ -28,7 +28,7 @@
 
     <!-- Controls -->
     <div style="height: 60vh; background: white; padding: 40px;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; max-width: 800px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; max-width: 1000px;">
         <div>
           <label style="display: block; margin-bottom: 10px; font-family: monospace;">EYE</label>
           <select v-model="selectedEye" style="width: 100%; padding: 8px; font-family: monospace;">
@@ -38,7 +38,7 @@
         </div>
         
         <div>
-          <label style="display: block; margin-bottom: 10px; font-family: monospace;">POSITION</label>
+          <label style="display: block; margin-bottom: 10px; font-family: monospace;">TYPE</label>
           <select v-model="widgetType" style="width: 100%; padding: 8px; font-family: monospace;">
             <option value="text">TEXT</option>
             <option value="decibel">DECIBEL METER</option>
@@ -46,8 +46,9 @@
         </div>
         
         <div>
-          <label style="display: block; margin-bottom: 10px; font-family: monospace;">POSITION</label>
+          <label style="display: block; margin-bottom: 10px; font-family: monospace;">POSITION PRESET</label>
           <select v-model="selectedPosition" style="width: 100%; padding: 8px; font-family: monospace;">
+            <option value="custom">CUSTOM (X/Y)</option>
             <option value="top-left">TOP LEFT</option>
             <option value="top-right">TOP RIGHT</option>
             <option value="bottom-left">BOTTOM LEFT</option>
@@ -59,6 +60,16 @@
         <div>
           <label style="display: block; margin-bottom: 10px; font-family: monospace;">TEXT</label>
           <input v-model="widgetText" style="width: 100%; padding: 8px; font-family: monospace;" placeholder="Enter text">
+        </div>
+        
+        <div>
+          <label style="display: block; margin-bottom: 10px; font-family: monospace;">X POSITION (px)</label>
+          <input v-model.number="customX" type="number" style="width: 100%; padding: 8px; font-family: monospace;" placeholder="0-300" min="0" max="300">
+        </div>
+        
+        <div>
+          <label style="display: block; margin-bottom: 10px; font-family: monospace;">Y POSITION (px)</label>
+          <input v-model.number="customY" type="number" style="width: 100%; padding: 8px; font-family: monospace;" placeholder="0-200" min="0" max="200">
         </div>
       </div>
       
@@ -80,6 +91,8 @@ const selectedEye = ref('left')
 const selectedPosition = ref('top-left')
 const widgetType = ref('text')
 const widgetText = ref('')
+const customX = ref(10)
+const customY = ref(10)
 const leftWidgets = ref([])
 const rightWidgets = ref([])
 let widgetIdCounter = 0
@@ -87,7 +100,13 @@ let widgetIdCounter = 0
 // Store decibel values for each widget
 const decibelValues = ref(new Map())
 
-const getPosition = (position) => {
+const getPosition = (widget) => {
+  // If widget has custom coordinates, use them
+  if (widget.x !== undefined && widget.y !== undefined) {
+    return `left: ${widget.x}px; top: ${widget.y}px;`
+  }
+  
+  // Otherwise use preset position
   const positions = {
     'top-left': 'top: 10px; left: 10px;',
     'top-right': 'top: 10px; right: 10px;',
@@ -95,7 +114,7 @@ const getPosition = (position) => {
     'bottom-right': 'bottom: 10px; right: 10px;',
     'center': 'top: 50%; left: 50%; transform: translate(-50%, -50%);'
   }
-  return positions[position] || positions['top-left']
+  return positions[widget.position] || positions['top-left']
 }
 
 const addWidget = () => {
@@ -104,8 +123,15 @@ const addWidget = () => {
   const widget = {
     id: ++widgetIdCounter,
     type: widgetType.value,
-    position: selectedPosition.value,
     text: widgetText.value
+  }
+  
+  // Add position data based on mode
+  if (selectedPosition.value === 'custom') {
+    widget.x = customX.value
+    widget.y = customY.value
+  } else {
+    widget.position = selectedPosition.value
   }
   
   if (selectedEye.value === 'left') {

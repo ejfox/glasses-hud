@@ -17,7 +17,9 @@ npm run dev
 
 1. **Select Eye**: Choose left or right lens
 2. **Choose Widget Type**: Text or animated decibel meter
-3. **Pick Position**: Top-left, top-right, bottom-left, bottom-right, or center
+3. **Pick Position**: 
+   - Use preset positions (top-left, top-right, bottom-left, bottom-right, center) for quick prototyping
+   - Or select "CUSTOM (X/Y)" for fine-grained pixel-level control with X/Y coordinates
 4. **Add Content**: Type text or add visual widgets
 5. **Prototype**: See how it looks in the glasses display
 
