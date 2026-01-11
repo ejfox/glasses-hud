@@ -9,6 +9,9 @@
           <div v-else-if="widget.type === 'decibel'" style="width: 64px; height: 4px; background: #333; position: relative;">
             <div :style="`width: ${getDecibelLevel(widget.id)}%; height: 100%; background: white;`"></div>
           </div>
+          <svg v-else-if="widget.type === 'sparkline'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="30"></svg>
+          <svg v-else-if="widget.type === 'barchart'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="40"></svg>
+          <svg v-else-if="widget.type === 'areachart'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="30"></svg>
         </div>
       </div>
       
@@ -22,6 +25,9 @@
           <div v-else-if="widget.type === 'decibel'" style="width: 64px; height: 4px; background: #333; position: relative;">
             <div :style="`width: ${getDecibelLevel(widget.id)}%; height: 100%; background: white;`"></div>
           </div>
+          <svg v-else-if="widget.type === 'sparkline'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="30"></svg>
+          <svg v-else-if="widget.type === 'barchart'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="40"></svg>
+          <svg v-else-if="widget.type === 'areachart'" :ref="el => setWidgetRef(widget.id, el)" width="80" height="30"></svg>
         </div>
       </div>
     </div>
@@ -38,10 +44,13 @@
         </div>
         
         <div>
-          <label style="display: block; margin-bottom: 10px; font-family: monospace;">POSITION</label>
+          <label style="display: block; margin-bottom: 10px; font-family: monospace;">TYPE</label>
           <select v-model="widgetType" style="width: 100%; padding: 8px; font-family: monospace;">
             <option value="text">TEXT</option>
             <option value="decibel">DECIBEL METER</option>
+            <option value="sparkline">SPARKLINE</option>
+            <option value="barchart">BAR CHART</option>
+            <option value="areachart">AREA CHART</option>
           </select>
         </div>
         
@@ -76,6 +85,8 @@
 
 <script setup>
 import { useRafFn } from '@vueuse/core'
+import * as d3 from 'd3'
+
 const selectedEye = ref('left')
 const selectedPosition = ref('top-left')
 const widgetType = ref('text')
@@ -86,6 +97,18 @@ let widgetIdCounter = 0
 
 // Store decibel values for each widget
 const decibelValues = ref(new Map())
+
+// Store D3 chart data for each widget
+const chartData = ref(new Map())
+
+// Store SVG element refs for D3 widgets
+const widgetRefs = ref(new Map())
+
+const setWidgetRef = (widgetId, el) => {
+  if (el) {
+    widgetRefs.value.set(widgetId, el)
+  }
+}
 
 const getPosition = (position) => {
   const positions = {
@@ -108,6 +131,13 @@ const addWidget = () => {
     text: widgetText.value
   }
   
+  // Initialize chart data for D3 widgets
+  if (['sparkline', 'barchart', 'areachart'].includes(widgetType.value)) {
+    // Generate initial data points
+    const dataPoints = Array.from({ length: 20 }, () => Math.random() * 100)
+    chartData.value.set(widget.id, dataPoints)
+  }
+  
   if (selectedEye.value === 'left') {
     leftWidgets.value.push(widget)
   } else {
@@ -115,10 +145,119 @@ const addWidget = () => {
   }
   
   widgetText.value = ''
+  
+  // Render D3 chart on next tick
+  if (['sparkline', 'barchart', 'areachart'].includes(widget.type)) {
+    nextTick(() => renderD3Widget(widget))
+  }
 }
 
 const getDecibelLevel = (widgetId) => {
   return decibelValues.value.get(widgetId) || 0
+}
+
+// D3 Rendering Functions
+const renderD3Widget = (widget) => {
+  const svg = widgetRefs.value.get(widget.id)
+  if (!svg) return
+  
+  const data = chartData.value.get(widget.id)
+  if (!data) return
+  
+  // Clear previous content
+  d3.select(svg).selectAll('*').remove()
+  
+  if (widget.type === 'sparkline') {
+    renderSparkline(svg, data)
+  } else if (widget.type === 'barchart') {
+    renderBarChart(svg, data)
+  } else if (widget.type === 'areachart') {
+    renderAreaChart(svg, data)
+  }
+}
+
+const renderSparkline = (svg, data) => {
+  const width = 80
+  const height = 30
+  const margin = 2
+  
+  const x = d3.scaleLinear()
+    .domain([0, data.length - 1])
+    .range([margin, width - margin])
+  
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .range([height - margin, margin])
+  
+  const line = d3.line()
+    .x((d, i) => x(i))
+    .y(d => y(d))
+    .curve(d3.curveMonotoneX)
+  
+  d3.select(svg)
+    .append('path')
+    .datum(data)
+    .attr('fill', 'none')
+    .attr('stroke', 'white')
+    .attr('stroke-width', 1.5)
+    .attr('d', line)
+}
+
+const renderBarChart = (svg, data) => {
+  const width = 80
+  const height = 40
+  const margin = 2
+  
+  // Only show last 10 data points for bars
+  const displayData = data.slice(-10)
+  
+  const x = d3.scaleBand()
+    .domain(d3.range(displayData.length))
+    .range([margin, width - margin])
+    .padding(0.1)
+  
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .range([height - margin, margin])
+  
+  d3.select(svg)
+    .selectAll('rect')
+    .data(displayData)
+    .join('rect')
+    .attr('x', (d, i) => x(i))
+    .attr('y', d => y(d))
+    .attr('width', x.bandwidth())
+    .attr('height', d => height - margin - y(d))
+    .attr('fill', 'white')
+}
+
+const renderAreaChart = (svg, data) => {
+  const width = 80
+  const height = 30
+  const margin = 2
+  
+  const x = d3.scaleLinear()
+    .domain([0, data.length - 1])
+    .range([margin, width - margin])
+  
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .range([height - margin, margin])
+  
+  const area = d3.area()
+    .x((d, i) => x(i))
+    .y0(height - margin)
+    .y1(d => y(d))
+    .curve(d3.curveMonotoneX)
+  
+  d3.select(svg)
+    .append('path')
+    .datum(data)
+    .attr('fill', 'white')
+    .attr('fill-opacity', 0.7)
+    .attr('stroke', 'white')
+    .attr('stroke-width', 1)
+    .attr('d', area)
 }
 
 // Update decibel values every second
@@ -136,6 +275,18 @@ const updateDecibelValues = () => {
       const percentage = finalLevel
       decibelValues.value.set(widget.id, percentage)
     }
+    
+    // Update D3 chart data
+    if (['sparkline', 'barchart', 'areachart'].includes(widget.type)) {
+      const data = chartData.value.get(widget.id) || []
+      // Add new data point and keep last 20 points
+      const newValue = Math.random() * 100
+      const newData = [...data, newValue].slice(-20)
+      chartData.value.set(widget.id, newData)
+      
+      // Re-render the chart
+      renderD3Widget(widget)
+    }
   })
 }
 
@@ -143,6 +294,8 @@ const clearAll = () => {
   leftWidgets.value = []
   rightWidgets.value = []
   decibelValues.value.clear()
+  chartData.value.clear()
+  widgetRefs.value.clear()
 }
 
 // Animation control refs
