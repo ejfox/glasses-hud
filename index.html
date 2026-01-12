@@ -1,55 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Glasses HUD</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:monospace;background:#111}
-    .glasses{display:flex;justify-content:center;align-items:center;gap:12px;padding:30px 10px;background:#000}
-    .lens{width:42vw;max-width:300px;aspect-ratio:3/2;border:2px solid #444;border-radius:16px;position:relative}
-    .bridge{width:14px;height:6px;background:#444;margin-top:-50px}
-    .widget{position:absolute;color:#fff;font-size:12px;white-space:nowrap}
-    .controls{background:#fff;padding:20px}
-    .row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
-    .field{flex:1;min-width:140px}
-    label{display:block;margin-bottom:6px;font-size:12px;color:#666}
-    select,input{width:100%;padding:14px;font-size:16px;font-family:monospace;border:2px solid #ccc;border-radius:6px;background:#fff}
-    .buttons{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    button{padding:16px 24px;font-size:16px;font-family:monospace;border:none;border-radius:6px;cursor:pointer}
-    #addBtn{background:#000;color:#fff}
-    #clearBtn{background:#888;color:#fff}
-    #counter{font-size:14px;color:#666}
-  </style>
-</head>
-<body>
-<div class="glasses">
-  <div class="lens" id="leftLens"></div>
-  <div class="bridge"></div>
-  <div class="lens" id="rightLens"></div>
-</div>
-<div class="controls">
-  <div class="row">
-    <div class="field"><label>EYE</label><select id="eye"><option value="left">LEFT</option><option value="right">RIGHT</option></select></div>
-    <div class="field"><label>WIDGET</label><select id="type"><option value="bearing">BEARING</option><option value="heartRate">HEART RATE</option><option value="steps">STEPS</option><option value="temp">TEMPERATURE</option><option value="time">TIME</option><option value="text">TEXT</option></select></div>
-    <div class="field"><label>POSITION</label><select id="pos"><option value="tl">TOP LEFT</option><option value="tr">TOP RIGHT</option><option value="bl">BOTTOM LEFT</option><option value="br">BOTTOM RIGHT</option><option value="c">CENTER</option></select></div>
-  </div>
-  <div class="row"><div class="field"><label>TEXT (optional)</label><input type="text" id="text" placeholder="Enter text..."></div></div>
-  <div class="buttons">
-    <button id="addBtn">ADD WIDGET</button>
-    <button id="clearBtn">CLEAR</button>
-    <span id="counter">L: 0 | R: 0</span>
-  </div>
-</div>
-<script>
-var leftLens=document.getElementById('leftLens'),rightLens=document.getElementById('rightLens'),addBtn=document.getElementById('addBtn'),clearBtn=document.getElementById('clearBtn'),counter=document.getElementById('counter'),eyeSelect=document.getElementById('eye'),typeSelect=document.getElementById('type'),posSelect=document.getElementById('pos'),textInput=document.getElementById('text'),leftCount=0,rightCount=0,widgetId=0,sensors={bearing:127,heartRate:72,steps:4521,temp:21.5};
-setInterval(function(){sensors.bearing=Math.floor(Math.random()*360);sensors.heartRate=60+Math.floor(Math.random()*40);sensors.steps+=Math.floor(Math.random()*3);sensors.temp=(18+Math.random()*7).toFixed(1);document.querySelectorAll('[data-type]').forEach(function(el){el.textContent=getValue(el.dataset.type,el.dataset.text)})},1000);
-function getValue(type,text){switch(type){case'bearing':return sensors.bearing+'\u00B0';case'heartRate':return sensors.heartRate+' BPM';case'steps':return sensors.steps+' STEPS';case'temp':return sensors.temp+'\u00B0C';case'time':return new Date().toLocaleTimeString();case'text':return text||'TEXT';default:return type}}
-function getPos(p){switch(p){case'tl':return'top:8px;left:8px';case'tr':return'top:8px;right:8px';case'bl':return'bottom:8px;left:8px';case'br':return'bottom:8px;right:8px';case'c':return'top:50%;left:50%;transform:translate(-50%,-50%)';default:return'top:8px;left:8px'}}
-function addWidget(){var eye=eyeSelect.value,type=typeSelect.value,pos=posSelect.value,text=textInput.value,lens=eye==='left'?leftLens:rightLens,div=document.createElement('div');div.className='widget';div.dataset.type=type;div.dataset.text=text;div.style.cssText=getPos(pos);div.textContent=getValue(type,text);lens.appendChild(div);if(eye==='left')leftCount++;else rightCount++;counter.textContent='L: '+leftCount+' | R: '+rightCount;textInput.value=''}
-function clearAll(){leftLens.innerHTML='';rightLens.innerHTML='';leftCount=0;rightCount=0;counter.textContent='L: 0 | R: 0'}
-addBtn.onclick=addWidget;clearBtn.onclick=clearAll;
-</script>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/glasses-hud/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>glasses-hud-react</title>
+    <script type="module" crossorigin src="/glasses-hud/assets/index-9yYwajiI.js"></script>
+    <link rel="stylesheet" crossorigin href="/glasses-hud/assets/index-DwrpeGxo.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
