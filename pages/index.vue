@@ -243,6 +243,7 @@ const addWidget = () => {
     widget.position = selectedPosition.value
   }
   
+
   // Initialize chart data for D3 widgets
   if (['sparkline', 'barchart', 'areachart'].includes(widgetType.value)) {
     // Generate initial data points
