@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core'
+import { animate } from 'animejs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 // Simplex-inspired noise for smooth random values
 class SmoothNoise {
@@ -179,37 +180,12 @@ const WIDGET_CATEGORIES = [
   },
 ]
 
-// Flatten for select options
-const WIDGET_TYPES = WIDGET_CATEGORIES.flatMap(cat => [
-  { value: `cat_${cat.label}`, label: cat.label, disabled: true },
-  ...cat.widgets
-])
-
-const POSITIONS = [
-  { value: 'tl', label: 'Top Left' },
-  { value: 'tr', label: 'Top Right' },
-  { value: 'bl', label: 'Bottom Left' },
-  { value: 'br', label: 'Bottom Right' },
-  { value: 'c', label: 'Center' },
-  { value: 'tc', label: 'Top Center' },
-  { value: 'bc', label: 'Bottom Center' },
-  { value: 'ml', label: 'Middle Left' },
-  { value: 'mr', label: 'Middle Right' },
-]
-
-function getPositionClasses(pos) {
-  const positions = {
-    'tl': 'top-2 left-2',
-    'tr': 'top-2 right-2',
-    'bl': 'bottom-2 left-2',
-    'br': 'bottom-2 right-2',
-    'c': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-    'tc': 'top-2 left-1/2 -translate-x-1/2',
-    'bc': 'bottom-2 left-1/2 -translate-x-1/2',
-    'ml': 'top-1/2 left-2 -translate-y-1/2',
-    'mr': 'top-1/2 right-2 -translate-y-1/2',
-  }
-  return positions[pos] || positions['tl']
+// Grid snapping - 5% increments for finer control, Swiss precision
+const GRID_SIZE = 5
+const GRID_PADDING = 8 // ~8% margin from edges
+const snapToGrid = (value) => {
+  const snapped = Math.round(value / GRID_SIZE) * GRID_SIZE
+  return Math.max(GRID_PADDING, Math.min(100 - GRID_PADDING, snapped))
 }
 
 // Simulated song titles with BPM
@@ -232,15 +208,161 @@ const EVENTS = [
   { title: 'Gym', time: '6:00 PM' },
 ]
 
+// Draggable widget card from palette
+function DraggableCard({ type, label, preview, isSelected, onSelect }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${type}`,
+    data: { type, fromPalette: true }
+  })
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={() => onSelect(type)}
+      className={`group relative rounded-lg p-2 text-left transition-all touch-none ${
+        isDragging ? 'opacity-50' : ''
+      } ${
+        isSelected
+          ? 'bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-2'
+          : 'bg-white hover:bg-zinc-100 border border-zinc-200 hover:border-zinc-300'
+      }`}
+    >
+      <div className={`font-mono text-xs truncate ${isSelected ? 'text-zinc-300' : 'text-zinc-500'}`}>
+        {preview}
+      </div>
+      <div className={`text-[11px] font-medium truncate mt-0.5 ${isSelected ? 'text-white' : 'text-zinc-700'}`}>
+        {label}
+      </div>
+    </button>
+  )
+}
+
+// Droppable lens area
+function DroppableLens({ eye, isOver, children }) {
+  const { setNodeRef } = useDroppable({ id: `lens-${eye}` })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-[44vw] sm:w-[42vw] max-w-[320px] aspect-[3/2] border-2 rounded-2xl relative overflow-hidden transition-all ${
+        isOver ? 'border-white bg-zinc-800/50 scale-105' : 'border-zinc-700'
+      }`}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Draggable widget on lens - uses anime.js for smooth grid snapping
+function DraggableLensWidget({ widget, onMove, onRemove, getValue }) {
+  const ref = useRef(null)
+  const isDragging = useRef(false)
+  const startPos = useRef({ x: 0, y: 0 })
+  const startWidget = useRef({ x: 0, y: 0 })
+
+  const handlePointerDown = useCallback((e) => {
+    if (e.target.closest('button')) return // Don't drag if clicking delete button
+    e.preventDefault()
+    e.stopPropagation()
+    isDragging.current = true
+    startPos.current = { x: e.clientX, y: e.clientY }
+    startWidget.current = { x: widget.x, y: widget.y }
+    ref.current?.setPointerCapture(e.pointerId)
+    ref.current.style.zIndex = '50'
+    ref.current.style.cursor = 'grabbing'
+  }, [widget.x, widget.y])
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isDragging.current || !ref.current) return
+    const parent = ref.current.parentElement
+    if (!parent) return
+
+    const rect = parent.getBoundingClientRect()
+    const deltaX = ((e.clientX - startPos.current.x) / rect.width) * 100
+    const deltaY = ((e.clientY - startPos.current.y) / rect.height) * 100
+
+    const newX = Math.max(8, Math.min(92, startWidget.current.x + deltaX))
+    const newY = Math.max(8, Math.min(92, startWidget.current.y + deltaY))
+
+    // Live position update (no snapping during drag)
+    ref.current.style.left = `${newX}%`
+    ref.current.style.top = `${newY}%`
+  }, [])
+
+  const handlePointerUp = useCallback((e) => {
+    if (!isDragging.current || !ref.current) return
+    isDragging.current = false
+    ref.current?.releasePointerCapture(e.pointerId)
+    ref.current.style.zIndex = ''
+    ref.current.style.cursor = ''
+
+    const parent = ref.current.parentElement
+    if (!parent) return
+
+    const rect = parent.getBoundingClientRect()
+    const deltaX = ((e.clientX - startPos.current.x) / rect.width) * 100
+    const deltaY = ((e.clientY - startPos.current.y) / rect.height) * 100
+
+    const rawX = startWidget.current.x + deltaX
+    const rawY = startWidget.current.y + deltaY
+
+    // Snap to 5% grid with 8% margin
+    const snappedX = Math.max(8, Math.min(92, Math.round(rawX / 5) * 5))
+    const snappedY = Math.max(8, Math.min(92, Math.round(rawY / 5) * 5))
+
+    // Animate to snapped position with anime.js
+    animate(ref.current, {
+      left: `${snappedX}%`,
+      top: `${snappedY}%`,
+      duration: 150,
+      ease: 'outBack',
+      onComplete: () => {
+        onMove(widget.id, snappedX, snappedY)
+      }
+    })
+  }, [widget.id, onMove])
+
+  return (
+    <div
+      ref={ref}
+      className="absolute text-white text-sm sm:text-xs font-mono tracking-wide select-none group cursor-grab touch-none"
+      style={{
+        left: `${widget.x}%`,
+        top: `${widget.y}%`,
+        transform: 'translate(-50%, -50%)',
+        textShadow: '0 0 10px rgba(255,255,255,0.4)'
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      {getValue(widget.type, widget.text)}
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(widget.id) }}
+        className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center leading-none"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 function App() {
   const [leftWidgets, setLeftWidgets] = useState([])
   const [rightWidgets, setRightWidgets] = useState([])
-  const [eye, setEye] = useState('left')
-  const [widgetType, setWidgetType] = useState('heartRate')
-  const [position, setPosition] = useState('tl')
+  const [selectedType, setSelectedType] = useState('heartRate')
   const [text, setText] = useState('')
   const [sensors, setSensors] = useState({})
   const [showControls, setShowControls] = useState(true)
+  const [showGrid, setShowGrid] = useState(false)
+  const [activeId, setActiveId] = useState(null)
+  const [overLens, setOverLens] = useState(null)
+  const [dropCoords, setDropCoords] = useState({ x: 50, y: 50 }) // Track where to drop
+  const leftLensRef = useRef(null)
+  const rightLensRef = useRef(null)
 
   const noiseRef = useRef({})
   const stepsRef = useRef(4521)
@@ -487,11 +609,82 @@ function App() {
     }
   }
 
-  function addWidget() {
-    const widget = { id: Date.now(), type: widgetType, position, text }
-    if (eye === 'left') setLeftWidgets(prev => [...prev, widget])
-    else setRightWidgets(prev => [...prev, widget])
-    setText('')
+  // dnd-kit handlers
+  function handleDragStart(event) {
+    setActiveId(event.active.id)
+    setShowGrid(true)
+    // Lock scroll while dragging
+    document.body.style.overflow = 'hidden'
+  }
+
+  function handleDragMove(event) {
+    // Calculate position relative to the lens being hovered
+    if (!event.over) return
+
+    const overId = event.over.id
+    if (overId === 'lens-left' || overId === 'lens-right') {
+      const lensElement = event.over.rect
+      if (lensElement && event.activatorEvent) {
+        // Get pointer position from the drag event
+        const pointerX = event.delta.x + (event.activatorEvent.clientX || 0)
+        const pointerY = event.delta.y + (event.activatorEvent.clientY || 0)
+
+        // Calculate percentage position within lens
+        const x = ((pointerX - lensElement.left) / lensElement.width) * 100
+        const y = ((pointerY - lensElement.top) / lensElement.height) * 100
+
+        // Snap to 5% grid with 8% margin
+        const snappedX = Math.max(8, Math.min(92, Math.round(x / 5) * 5))
+        const snappedY = Math.max(8, Math.min(92, Math.round(y / 5) * 5))
+
+        setDropCoords({ x: snappedX, y: snappedY })
+      }
+    }
+  }
+
+  function handleDragOver(event) {
+    const overId = event.over?.id
+    if (overId === 'lens-left') setOverLens('left')
+    else if (overId === 'lens-right') setOverLens('right')
+    else setOverLens(null)
+
+    handleDragMove(event)
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event
+
+    // Dropping from palette onto lens
+    if (over && active.data.current?.fromPalette && over.id.startsWith('lens-')) {
+      const eye = over.id === 'lens-left' ? 'left' : 'right'
+      const type = active.data.current.type
+
+      // Place at the tracked drop coordinates
+      const widget = { id: Date.now(), type, x: dropCoords.x, y: dropCoords.y, text }
+      if (eye === 'left') setLeftWidgets(prev => [...prev, widget])
+      else setRightWidgets(prev => [...prev, widget])
+      setText('')
+    }
+
+    setActiveId(null)
+    setShowGrid(false)
+    setOverLens(null)
+    setDropCoords({ x: 50, y: 50 })
+    // Unlock scroll
+    document.body.style.overflow = ''
+  }
+
+  // Move widget to new position
+  function moveWidget(eye, widgetId, x, y) {
+    const update = (widgets) => widgets.map(w => w.id === widgetId ? { ...w, x, y } : w)
+    if (eye === 'left') setLeftWidgets(update)
+    else setRightWidgets(update)
+  }
+
+  // Remove widget
+  function removeWidget(eye, widgetId) {
+    if (eye === 'left') setLeftWidgets(prev => prev.filter(w => w.id !== widgetId))
+    else setRightWidgets(prev => prev.filter(w => w.id !== widgetId))
   }
 
   function clearAll() {
@@ -499,114 +692,163 @@ function App() {
     setRightWidgets([])
   }
 
-  const renderLens = (widgets, label) => (
-    <div className="relative">
-      <div className="w-[44vw] sm:w-[42vw] max-w-[320px] aspect-[3/2] border-2 border-zinc-700 rounded-2xl relative overflow-hidden">
-        {widgets.map(w => (
-          <div
-            key={w.id}
-            className={`absolute text-white text-sm sm:text-xs font-mono tracking-wide ${getPositionClasses(w.position)}`}
-            style={{ textShadow: '0 0 10px rgba(255,255,255,0.4)' }}
-          >
-            {getValue(w.type, w.text)}
-          </div>
-        ))}
+  const renderLens = (widgets, eye) => {
+    const isOver = overLens === eye
+    const activeType = activeId?.replace('palette-', '')
+    return (
+      <div className="relative">
+        <DroppableLens eye={eye} isOver={isOver}>
+          {/* Swiss-style grid overlay - subtle, precise */}
+          {showGrid && (
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Major gridlines every 20% */}
+              {[1, 2, 3, 4].map(i => (
+                <div key={`mh${i}`} className="absolute w-full h-px bg-zinc-500/30" style={{ top: `${i * 20}%` }} />
+              ))}
+              {[1, 2, 3, 4].map(i => (
+                <div key={`mv${i}`} className="absolute h-full w-px bg-zinc-500/30" style={{ left: `${i * 20}%` }} />
+              ))}
+              {/* Minor gridlines every 10% */}
+              {[1, 3, 5, 7, 9].map(i => (
+                <div key={`h${i}`} className="absolute w-full h-px bg-zinc-700/20" style={{ top: `${i * 10}%` }} />
+              ))}
+              {[1, 3, 5, 7, 9].map(i => (
+                <div key={`v${i}`} className="absolute h-full w-px bg-zinc-700/20" style={{ left: `${i * 10}%` }} />
+              ))}
+              {/* Safe zone indicator */}
+              <div className="absolute border border-dashed border-zinc-600/30 rounded-lg" style={{ inset: '8%' }} />
+            </div>
+          )}
+
+          {/* Ghost preview - shows where widget will land */}
+          {isOver && activeId && (
+            <div
+              className="absolute text-zinc-500/60 text-sm sm:text-xs font-mono tracking-wide pointer-events-none transition-all duration-75"
+              style={{
+                left: `${dropCoords.x}%`,
+                top: `${dropCoords.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              {getValue(activeType, text)}
+            </div>
+          )}
+
+          {/* Widgets - draggable with anime.js snap */}
+          {widgets.map(w => (
+            <DraggableLensWidget
+              key={w.id}
+              widget={w}
+              onMove={(id, x, y) => moveWidget(eye, id, x, y)}
+              onRemove={(id) => removeWidget(eye, id)}
+              getValue={getValue}
+            />
+          ))}
+
+          {/* Empty state */}
+          {widgets.length === 0 && !activeId && (
+            <div className="absolute inset-0 flex items-center justify-center text-zinc-700 text-[10px] font-mono uppercase tracking-widest pointer-events-none">
+              Drop here
+            </div>
+          )}
+        </DroppableLens>
+        <div className="text-zinc-600 text-[10px] text-center mt-1 font-mono uppercase tracking-[0.2em]">{eye === 'left' ? 'L' : 'R'}</div>
       </div>
-      <div className="text-zinc-600 text-[10px] text-center mt-1 font-mono uppercase tracking-widest">{label}</div>
-    </div>
-  )
+    )
+  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-black">
-      {/* Glasses Display - fills screen on mobile when controls hidden */}
-      <div
-        className={`bg-black flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 ${
-          showControls ? 'p-4 sm:p-8' : 'p-4 sm:p-8 flex-1'
-        }`}
-        onClick={() => !showControls && setShowControls(true)}
-      >
-        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
-            {renderLens(leftWidgets, 'L')}
-            <div className="w-2 sm:w-3 h-1 sm:h-1.5 bg-zinc-700 -mt-6 sm:-mt-8" />
-            {renderLens(rightWidgets, 'R')}
+    <DndContext onDragStart={handleDragStart} onDragMove={handleDragMove} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+      <div className="min-h-screen flex flex-col bg-black">
+        {/* Glasses Display - sticky at top */}
+        <div
+          className={`bg-black flex justify-center items-center gap-2 sm:gap-3 sticky top-0 z-40 transition-all duration-300 ${
+            showControls ? 'p-4 sm:p-6' : 'p-4 sm:p-8 flex-1'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {renderLens(leftWidgets, 'left')}
+              <div className="w-2 sm:w-3 h-1 sm:h-1.5 bg-zinc-700 -mt-6 sm:-mt-8" />
+              {renderLens(rightWidgets, 'right')}
+            </div>
+          </div>
+        </div>
+
+        {/* Toggle button - sticky below glasses */}
+        <button
+          onClick={() => setShowControls(!showControls)}
+          className="bg-zinc-900 border-t border-zinc-800 py-2 px-4 text-zinc-500 text-xs font-mono flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors sticky top-[200px] sm:top-[180px] z-30"
+        >
+          <span>{showControls ? '▼ Hide Controls' : '▲ Show Controls'}</span>
+          <span className="text-zinc-600">L:{leftWidgets.length} R:{rightWidgets.length}</span>
+        </button>
+
+        {/* Controls - scrollable */}
+        <div className={`bg-zinc-50 transition-all duration-300 ${showControls ? 'min-h-[50vh]' : 'h-0 overflow-hidden'}`}>
+          <div className="p-3 sm:p-4">
+            <div className="max-w-4xl mx-auto space-y-3">
+              {/* Instructions bar */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-zinc-500">
+                  <strong>Drag</strong> widgets onto lenses &bull; <strong>Hover + ×</strong> to remove
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={() => setShowGrid(!showGrid)} variant="outline" size="sm">
+                    {showGrid ? 'Hide Grid' : 'Show Grid'}
+                  </Button>
+                  <Button onClick={clearAll} variant="secondary" size="sm">Clear All</Button>
+                </div>
+              </div>
+
+              {/* Custom text input - only show when text widget selected */}
+              {(selectedType === 'text' || selectedType === 'label') && (
+                <div className="bg-white rounded-lg p-3 border">
+                  <Input
+                    value={text}
+                    onChange={e => setText(e.target.value)}
+                    placeholder="Enter custom text..."
+                    className="text-base"
+                  />
+                </div>
+              )}
+
+              {/* Widget Bento Grid */}
+              <div className="space-y-3">
+                {WIDGET_CATEGORIES.map(category => (
+                  <div key={category.label}>
+                    <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2 px-1">
+                      {category.label.replace(/—/g, '').trim()}
+                    </h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                      {category.widgets.map(w => (
+                        <DraggableCard
+                          key={w.value}
+                          type={w.value}
+                          label={w.label}
+                          preview={getValue(w.value, 'Sample')}
+                          isSelected={selectedType === w.value}
+                          onSelect={setSelectedType}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Toggle button - always visible */}
-      <button
-        onClick={() => setShowControls(!showControls)}
-        className="bg-zinc-900 border-t border-zinc-800 py-2 px-4 text-zinc-500 text-xs font-mono flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors"
-      >
-        <span>{showControls ? '▼ Hide Controls' : '▲ Show Controls'}</span>
-        <span className="text-zinc-600">L:{leftWidgets.length} R:{rightWidgets.length}</span>
-      </button>
-
-      {/* Controls - collapsible */}
-      <div className={`bg-white overflow-hidden transition-all duration-300 ${showControls ? 'flex-1' : 'h-0'}`}>
-        <div className="p-4 sm:p-6 overflow-auto h-full">
-          <div className="max-w-2xl mx-auto space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-500">Eye</label>
-                <Select value={eye} onValueChange={setEye}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="left">Left</SelectItem>
-                    <SelectItem value="right">Right</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-500">Widget</label>
-                <Select value={widgetType} onValueChange={setWidgetType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {WIDGET_TYPES.map(t =>
-                      t.disabled ? (
-                        <div key={t.value} className="px-2 py-1.5 text-xs font-semibold text-zinc-400 bg-zinc-50">
-                          {t.label}
-                        </div>
-                      ) : (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-500">Position</label>
-                <Select value={position} onValueChange={setPosition}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {POSITIONS.map(p => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-500">Text (for custom widgets)</label>
-              <Input
-                value={text}
-                onChange={e => setText(e.target.value)}
-                placeholder="Enter text..."
-              />
-            </div>
-
-            <div className="flex gap-3 items-center flex-wrap">
-              <Button onClick={addWidget} size="lg">Add Widget</Button>
-              <Button onClick={clearAll} variant="secondary" size="lg">Clear All</Button>
-            </div>
+      {/* Drag overlay - shows what's being dragged */}
+      <DragOverlay>
+        {activeId && activeId.startsWith('palette-') && (
+          <div className="bg-zinc-900 text-white rounded-lg p-2 shadow-xl opacity-90">
+            <div className="font-mono text-xs">{getValue(activeId.replace('palette-', ''), text)}</div>
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   )
 }
 
