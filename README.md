@@ -1,16 +1,173 @@
-# React + Vite
+# Glasses HUD Prototyping Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based simulator for prototyping AR glasses heads-up displays. Design and preview widget layouts for smart glasses interfaces with realistic, smoothly-animated sensor data.
 
-Currently, two official plugins are available:
+**Live Demo:** https://ejfox.github.io/glasses-hud/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Why This Exists
 
-## React Compiler
+Designing interfaces for AR glasses is hard without the actual hardware. This tool lets you:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Prototype layouts** - Place widgets on left/right lenses in 9 positions
+- **See realistic data** - Sensor values animate smoothly, not randomly
+- **Test on mobile** - Collapsible controls for fullscreen preview on phones/tablets
+- **Iterate quickly** - No build step needed for layout changes
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 55+ Widget Types
+
+Organized into 13 categories that mirror real smartwatch/glasses capabilities:
+
+| Category | Widgets |
+|----------|---------|
+| **Body** | Heart Rate, HRV, Blood Oxygen (SpO2), Stress Level, Calories, Body Temp |
+| **Motion** | Steps, Distance, Speed, Pace, Floors Climbed, Cadence |
+| **Location** | Compass/Bearing, Altitude, Coordinates, GPS Accuracy |
+| **Environment** | Temperature, Humidity, Pressure, UV Index, Air Quality, Light Level, Noise Level |
+| **Device** | Watch Battery, Phone Battery, Signal Strength, WiFi, Storage |
+| **Time** | Clock, Date, Stopwatch, Timer, Sunrise, Sunset |
+| **Messages** | Unread Messages, Emails, Missed Calls, Slack Unread, All Notifications |
+| **Productivity** | Todo Count, Next Todo, Focus Time, Screen Time, Meeting Countdown, Pomodoro Timer |
+| **Media** | Now Playing, Artist, Song BPM, Song Progress, Volume |
+| **Social** | Followers, New Likes, Mentions |
+| **Weather** | Current Weather, Feels Like, Rain Chance, Wind Speed, Visibility |
+| **Navigation** | Distance to Destination, ETA, Next Turn Direction |
+| **Custom** | Custom Text, Labels |
+
+### Realistic Data Simulation
+
+Values don't just random-walk. The simulator uses:
+
+- **Fractal Brownian Motion (FBM)** - Multi-octave noise for organic, smooth transitions
+- **Correlated sensors** - Walking increases heart rate, speed, cadence simultaneously
+- **Activity states** - Simulated walking/resting cycles affect multiple readings
+- **Temporal patterns** - Some values (UV, meetings) follow time-of-day patterns
+
+### Mobile-Friendly Viewing
+
+- Collapsible control panel for fullscreen HUD preview
+- Larger text on mobile devices
+- Dark theme optimized for viewing the display
+- Touch-friendly controls
+
+## Getting Started
+
+```bash
+# Clone
+git clone https://github.com/ejfox/glasses-hud.git
+cd glasses-hud
+
+# Install
+npm install
+
+# Run locally
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to GitHub Pages
+npx gh-pages -d dist
+```
+
+## Usage
+
+1. Select which **eye** (left or right lens)
+2. Choose a **widget type** from the categorized dropdown
+3. Pick a **position** (9 options: corners, edges, center)
+4. Click **Add Widget**
+5. Hide controls to preview fullscreen
+
+## Adding New Widgets
+
+To add a new widget type:
+
+### 1. Add to `WIDGET_CATEGORIES`
+
+```jsx
+{
+  label: '— Your Category —',
+  widgets: [
+    { value: 'yourWidget', label: 'Your Widget' },
+  ]
+}
+```
+
+### 2. Add sensor data (if needed)
+
+In the `setSensors()` call inside `useEffect`:
+
+```jsx
+setSensors({
+  // ... existing sensors
+  yourValue: n.main.range(t, min, max, speed),
+})
+```
+
+### 3. Add display handler
+
+In the `getValue()` switch statement:
+
+```jsx
+case 'yourWidget': return `${s.yourValue} units`
+```
+
+## Technical Details
+
+### Noise Generation
+
+The `SmoothNoise` class generates FBM (Fractal Brownian Motion) noise:
+
+```jsx
+const noise = new SmoothNoise(seed)
+// Get value between min-max, animated over time
+const value = noise.range(time, min, max, speed)
+```
+
+- `seed` - Different seeds = different patterns
+- `time` - Usually `performance.now() / 1000`
+- `speed` - How fast the value changes (0.1 = slow drift, 2 = rapid variation)
+
+### Walking Simulation
+
+The app simulates activity cycles:
+
+```jsx
+const walkCycle = noise.range(t * 0.1, 0, 1, 0.5)
+if (walkCycle > 0.7) isWalking = true  // ~30% of time walking
+```
+
+When walking:
+- Heart rate increases from ~68 to ~95 BPM
+- Speed jumps from ~0 to 3.5-5.5 km/h
+- Cadence activates (~110 spm)
+- Steps and calories accumulate
+
+### Positions
+
+9 widget positions available:
+
+| Code | Position |
+|------|----------|
+| `tl` | Top Left |
+| `tc` | Top Center |
+| `tr` | Top Right |
+| `ml` | Middle Left |
+| `c` | Center |
+| `mr` | Middle Right |
+| `bl` | Bottom Left |
+| `bc` | Bottom Center |
+| `br` | Bottom Right |
+
+## Stack
+
+- **React 19** - UI framework
+- **Vite** - Build tool
+- **Tailwind CSS v4** - Styling
+- **shadcn/ui** - Component library (Select, Button, Input)
+- **Radix UI** - Accessible primitives
+
+## License
+
+MIT
