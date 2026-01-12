@@ -113,12 +113,53 @@ const WIDGET_CATEGORIES = [
     ]
   },
   {
-    label: '— Notifications —',
+    label: '— Messages —',
     widgets: [
-      { value: 'notifications', label: 'Notifications' },
+      { value: 'unreadMessages', label: 'Unread Messages' },
+      { value: 'unreadEmails', label: 'Unread Emails' },
+      { value: 'missedCalls', label: 'Missed Calls' },
+      { value: 'slackUnread', label: 'Slack Unread' },
+      { value: 'notifications', label: 'All Notifications' },
+    ]
+  },
+  {
+    label: '— Productivity —',
+    widgets: [
+      { value: 'todoCount', label: 'Todo Count' },
+      { value: 'todoNext', label: 'Next Todo' },
+      { value: 'focusTime', label: 'Focus Time' },
+      { value: 'screenTime', label: 'Screen Time' },
+      { value: 'meetingIn', label: 'Meeting In...' },
       { value: 'nextEvent', label: 'Next Event' },
-      { value: 'weather', label: 'Weather' },
+      { value: 'pomodoroTimer', label: 'Pomodoro' },
+    ]
+  },
+  {
+    label: '— Media —',
+    widgets: [
       { value: 'nowPlaying', label: 'Now Playing' },
+      { value: 'songArtist', label: 'Artist' },
+      { value: 'songBpm', label: 'Song BPM' },
+      { value: 'songProgress', label: 'Song Progress' },
+      { value: 'volume', label: 'Volume' },
+    ]
+  },
+  {
+    label: '— Social —',
+    widgets: [
+      { value: 'followers', label: 'Followers' },
+      { value: 'likes', label: 'New Likes' },
+      { value: 'mentions', label: 'Mentions' },
+    ]
+  },
+  {
+    label: '— Weather —',
+    widgets: [
+      { value: 'weather', label: 'Weather' },
+      { value: 'feelsLike', label: 'Feels Like' },
+      { value: 'rainChance', label: 'Rain Chance' },
+      { value: 'wind', label: 'Wind' },
+      { value: 'visibility', label: 'Visibility' },
     ]
   },
   {
@@ -171,13 +212,16 @@ function getPositionClasses(pos) {
   return positions[pos] || positions['tl']
 }
 
-// Simulated song titles
+// Simulated song titles with BPM
 const SONGS = [
-  { title: 'Midnight City', artist: 'M83' },
-  { title: 'Starboy', artist: 'The Weeknd' },
-  { title: 'Blinding Lights', artist: 'The Weeknd' },
-  { title: 'Take On Me', artist: 'a-ha' },
-  { title: 'Electric Feel', artist: 'MGMT' },
+  { title: 'Midnight City', artist: 'M83', bpm: 105 },
+  { title: 'Starboy', artist: 'The Weeknd', bpm: 186 },
+  { title: 'Blinding Lights', artist: 'The Weeknd', bpm: 171 },
+  { title: 'Take On Me', artist: 'a-ha', bpm: 169 },
+  { title: 'Electric Feel', artist: 'MGMT', bpm: 116 },
+  { title: 'Get Lucky', artist: 'Daft Punk', bpm: 116 },
+  { title: 'Uptown Funk', artist: 'Bruno Mars', bpm: 115 },
+  { title: 'Bohemian Rhapsody', artist: 'Queen', bpm: 72 },
 ]
 
 // Simulated calendar events
@@ -196,6 +240,7 @@ function App() {
   const [position, setPosition] = useState('tl')
   const [text, setText] = useState('')
   const [sensors, setSensors] = useState({})
+  const [showControls, setShowControls] = useState(true)
 
   const noiseRef = useRef({})
   const stepsRef = useRef(4521)
@@ -381,11 +426,53 @@ function App() {
       case 'sunrise': return '6:42 AM'
       case 'sunset': return '7:38 PM'
 
-      // Notifications
-      case 'notifications': return `${Math.floor(3 + Math.sin(now.getSeconds() * 0.1) * 2)} notifs`
+      // Messages & Notifications
+      case 'unreadMessages': return `${Math.floor(7 + Math.sin(now.getSeconds() * 0.05) * 4)} msgs`
+      case 'unreadEmails': return `${Math.floor(23 + Math.sin(now.getSeconds() * 0.02) * 8)} emails`
+      case 'missedCalls': return `${Math.floor(1 + Math.sin(now.getMinutes() * 0.5) * 1)} missed`
+      case 'slackUnread': return `${Math.floor(12 + Math.sin(now.getSeconds() * 0.03) * 6)} slack`
+      case 'notifications': return `${Math.floor(14 + Math.sin(now.getSeconds() * 0.04) * 5)} notifs`
+
+      // Productivity
+      case 'todoCount': return `${Math.floor(8 + Math.sin(now.getMinutes() * 0.2) * 3)} todos`
+      case 'todoNext': {
+        const todos = ['Review PR', 'Call mom', 'Ship feature', 'Write tests', 'Fix bug']
+        return todos[Math.floor(now.getMinutes() / 12) % todos.length]
+      }
+      case 'focusTime': return `${Math.floor(now.getMinutes() + now.getSeconds() / 60)} min focus`
+      case 'screenTime': return `${Math.floor(2 + now.getHours() * 0.3)}h ${Math.floor(now.getMinutes() / 2)}m`
+      case 'meetingIn': {
+        const mins = Math.floor(45 - (now.getMinutes() % 60))
+        return mins > 0 ? `Meeting in ${mins}m` : 'Meeting now'
+      }
       case 'nextEvent': return `${nextEvent.title} ${nextEvent.time}`
-      case 'weather': return `☀️ ${s.temp}°C`
+      case 'pomodoroTimer': {
+        const pomodoroSecs = (25 * 60) - ((now.getMinutes() % 25) * 60 + now.getSeconds())
+        return `🍅 ${Math.floor(pomodoroSecs / 60)}:${String(pomodoroSecs % 60).padStart(2, '0')}`
+      }
+
+      // Media
       case 'nowPlaying': return `♪ ${song.title}`
+      case 'songArtist': return song.artist
+      case 'songBpm': return `${song.bpm} BPM`
+      case 'songProgress': {
+        const progress = (now.getSeconds() + now.getMinutes() * 60) % 240
+        const total = 240
+        return `${Math.floor(progress / 60)}:${String(progress % 60).padStart(2, '0')} / ${Math.floor(total / 60)}:00`
+      }
+      case 'volume': return `🔊 ${Math.floor(65 + Math.sin(now.getMinutes() * 0.3) * 20)}%`
+
+      // Social
+      case 'followers': return `${(12847 + Math.floor(now.getMinutes())).toLocaleString()} followers`
+      case 'likes': return `${Math.floor(34 + Math.sin(now.getSeconds() * 0.1) * 12)} new likes`
+      case 'mentions': return `@${Math.floor(3 + Math.sin(now.getMinutes() * 0.2) * 2)} mentions`
+
+      // Weather
+      case 'weather': return `☀️ ${s.temp}°C`
+      case 'feelsLike': return `Feels ${(parseFloat(s.temp) + 2.5).toFixed(1)}°C`
+      case 'rainChance': return `🌧 ${Math.floor(15 + Math.sin(now.getHours() * 0.5) * 10)}%`
+      case 'wind': return `💨 ${Math.floor(8 + Math.sin(now.getMinutes() * 0.1) * 5)} km/h`
+      case 'visibility': return `${Math.floor(8 + Math.sin(now.getHours() * 0.2) * 4)} km vis`
 
       // Navigation
       case 'navDistance': return `${s.navDistanceKm} km`
@@ -412,97 +499,110 @@ function App() {
     setRightWidgets([])
   }
 
-  const renderLens = (widgets) => (
-    <div className="w-[42vw] max-w-[300px] aspect-[3/2] border-2 border-zinc-700 rounded-2xl relative overflow-hidden">
-      {widgets.map(w => (
-        <div
-          key={w.id}
-          className={`absolute text-white text-xs font-mono tracking-wide ${getPositionClasses(w.position)}`}
-          style={{ textShadow: '0 0 8px rgba(255,255,255,0.3)' }}
-        >
-          {getValue(w.type, w.text)}
-        </div>
-      ))}
+  const renderLens = (widgets, label) => (
+    <div className="relative">
+      <div className="w-[44vw] sm:w-[42vw] max-w-[320px] aspect-[3/2] border-2 border-zinc-700 rounded-2xl relative overflow-hidden">
+        {widgets.map(w => (
+          <div
+            key={w.id}
+            className={`absolute text-white text-sm sm:text-xs font-mono tracking-wide ${getPositionClasses(w.position)}`}
+            style={{ textShadow: '0 0 10px rgba(255,255,255,0.4)' }}
+          >
+            {getValue(w.type, w.text)}
+          </div>
+        ))}
+      </div>
+      <div className="text-zinc-600 text-[10px] text-center mt-1 font-mono uppercase tracking-widest">{label}</div>
     </div>
   )
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Glasses Display */}
-      <div className="bg-black p-8 flex justify-center items-center gap-3">
-        {renderLens(leftWidgets)}
-        <div className="w-3 h-1.5 bg-zinc-700 -mt-12" />
-        {renderLens(rightWidgets)}
+    <div className="min-h-screen flex flex-col bg-black">
+      {/* Glasses Display - fills screen on mobile when controls hidden */}
+      <div
+        className={`bg-black flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 ${
+          showControls ? 'p-4 sm:p-8' : 'p-4 sm:p-8 flex-1'
+        }`}
+        onClick={() => !showControls && setShowControls(true)}
+      >
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {renderLens(leftWidgets, 'L')}
+            <div className="w-2 sm:w-3 h-1 sm:h-1.5 bg-zinc-700 -mt-6 sm:-mt-8" />
+            {renderLens(rightWidgets, 'R')}
+          </div>
+        </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex-1 bg-white p-6 overflow-auto">
-        <div className="max-w-2xl mx-auto space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-500">Eye</label>
-              <Select value={eye} onValueChange={setEye}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
-                </SelectContent>
-              </Select>
+      {/* Toggle button - always visible */}
+      <button
+        onClick={() => setShowControls(!showControls)}
+        className="bg-zinc-900 border-t border-zinc-800 py-2 px-4 text-zinc-500 text-xs font-mono flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors"
+      >
+        <span>{showControls ? '▼ Hide Controls' : '▲ Show Controls'}</span>
+        <span className="text-zinc-600">L:{leftWidgets.length} R:{rightWidgets.length}</span>
+      </button>
+
+      {/* Controls - collapsible */}
+      <div className={`bg-white overflow-hidden transition-all duration-300 ${showControls ? 'flex-1' : 'h-0'}`}>
+        <div className="p-4 sm:p-6 overflow-auto h-full">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-500">Eye</label>
+                <Select value={eye} onValueChange={setEye}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-500">Widget</label>
+                <Select value={widgetType} onValueChange={setWidgetType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {WIDGET_TYPES.map(t =>
+                      t.disabled ? (
+                        <div key={t.value} className="px-2 py-1.5 text-xs font-semibold text-zinc-400 bg-zinc-50">
+                          {t.label}
+                        </div>
+                      ) : (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-500">Position</label>
+                <Select value={position} onValueChange={setPosition}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {POSITIONS.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-500">Widget</label>
-              <Select value={widgetType} onValueChange={setWidgetType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {WIDGET_TYPES.map(t =>
-                    t.disabled ? (
-                      <div key={t.value} className="px-2 py-1.5 text-xs font-semibold text-zinc-400 bg-zinc-50">
-                        {t.label}
-                      </div>
-                    ) : (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium text-zinc-500">Text (for custom widgets)</label>
+              <Input
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="Enter text..."
+              />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-500">Position</label>
-              <Select value={position} onValueChange={setPosition}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {POSITIONS.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex gap-3 items-center flex-wrap">
+              <Button onClick={addWidget} size="lg">Add Widget</Button>
+              <Button onClick={clearAll} variant="secondary" size="lg">Clear All</Button>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-500">Text (for custom widgets)</label>
-            <Input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Enter text..."
-            />
-          </div>
-
-          <div className="flex gap-3 items-center flex-wrap">
-            <Button onClick={addWidget} size="lg">Add Widget</Button>
-            <Button onClick={clearAll} variant="secondary" size="lg">Clear All</Button>
-            <span className="text-sm text-zinc-500 font-mono">
-              L: {leftWidgets.length} | R: {rightWidgets.length}
-            </span>
-          </div>
-
-          {/* Quick reference */}
-          <div className="pt-4 border-t">
-            <p className="text-xs text-zinc-400">
-              {WIDGET_CATEGORIES.flatMap(c => c.widgets).length} widgets available: body sensors, motion, location, environment, device status, time, notifications, navigation
-            </p>
           </div>
         </div>
       </div>
