@@ -240,12 +240,18 @@ function DraggableCard({ type, label, preview, isSelected, onSelect }) {
 }
 
 // Droppable lens area
-function DroppableLens({ eye, isOver, children }) {
+function DroppableLens({ eye, isOver, lensRef, children }) {
   const { setNodeRef } = useDroppable({ id: `lens-${eye}` })
+
+  // Combine refs
+  const combinedRef = (node) => {
+    setNodeRef(node)
+    if (lensRef) lensRef.current = node
+  }
 
   return (
     <div
-      ref={setNodeRef}
+      ref={combinedRef}
       className={`w-[44vw] sm:w-[42vw] max-w-[320px] aspect-[3/2] border-2 rounded-2xl relative overflow-hidden transition-all ${
         isOver ? 'border-white bg-zinc-800/50 scale-105' : 'border-zinc-700'
       }`}
@@ -361,6 +367,7 @@ function App() {
   const [activeId, setActiveId] = useState(null)
   const [overLens, setOverLens] = useState(null)
   const [dropCoords, setDropCoords] = useState({ x: 50, y: 50 }) // Track where to drop
+  const [pointerPos, setPointerPos] = useState({ x: 0, y: 0 }) // Track actual pointer
   const leftLensRef = useRef(null)
   const rightLensRef = useRef(null)
 
@@ -609,6 +616,45 @@ function App() {
     }
   }
 
+  // Track pointer position globally during drag
+  useEffect(() => {
+    if (!activeId) return
+
+    const handlePointer = (e) => {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY
+      setPointerPos({ x: clientX, y: clientY })
+
+      // Calculate drop coords for whichever lens we're over
+      const leftRect = leftLensRef.current?.getBoundingClientRect()
+      const rightRect = rightLensRef.current?.getBoundingClientRect()
+
+      let targetRect = null
+      if (leftRect && clientX >= leftRect.left && clientX <= leftRect.right &&
+          clientY >= leftRect.top && clientY <= leftRect.bottom) {
+        targetRect = leftRect
+      } else if (rightRect && clientX >= rightRect.left && clientX <= rightRect.right &&
+          clientY >= rightRect.top && clientY <= rightRect.bottom) {
+        targetRect = rightRect
+      }
+
+      if (targetRect) {
+        const x = ((clientX - targetRect.left) / targetRect.width) * 100
+        const y = ((clientY - targetRect.top) / targetRect.height) * 100
+        const snappedX = Math.max(8, Math.min(92, Math.round(x / 5) * 5))
+        const snappedY = Math.max(8, Math.min(92, Math.round(y / 5) * 5))
+        setDropCoords({ x: snappedX, y: snappedY })
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointer)
+    window.addEventListener('touchmove', handlePointer)
+    return () => {
+      window.removeEventListener('pointermove', handlePointer)
+      window.removeEventListener('touchmove', handlePointer)
+    }
+  }, [activeId])
+
   // dnd-kit handlers
   function handleDragStart(event) {
     setActiveId(event.active.id)
@@ -618,28 +664,7 @@ function App() {
   }
 
   function handleDragMove(event) {
-    // Calculate position relative to the lens being hovered
-    if (!event.over) return
-
-    const overId = event.over.id
-    if (overId === 'lens-left' || overId === 'lens-right') {
-      const lensElement = event.over.rect
-      if (lensElement && event.activatorEvent) {
-        // Get pointer position from the drag event
-        const pointerX = event.delta.x + (event.activatorEvent.clientX || 0)
-        const pointerY = event.delta.y + (event.activatorEvent.clientY || 0)
-
-        // Calculate percentage position within lens
-        const x = ((pointerX - lensElement.left) / lensElement.width) * 100
-        const y = ((pointerY - lensElement.top) / lensElement.height) * 100
-
-        // Snap to 5% grid with 8% margin
-        const snappedX = Math.max(8, Math.min(92, Math.round(x / 5) * 5))
-        const snappedY = Math.max(8, Math.min(92, Math.round(y / 5) * 5))
-
-        setDropCoords({ x: snappedX, y: snappedY })
-      }
-    }
+    // Position tracking now handled by useEffect above
   }
 
   function handleDragOver(event) {
@@ -695,9 +720,10 @@ function App() {
   const renderLens = (widgets, eye) => {
     const isOver = overLens === eye
     const activeType = activeId?.replace('palette-', '')
+    const lensRef = eye === 'left' ? leftLensRef : rightLensRef
     return (
       <div className="relative">
-        <DroppableLens eye={eye} isOver={isOver}>
+        <DroppableLens eye={eye} isOver={isOver} lensRef={lensRef}>
           {/* Swiss-style grid overlay - subtle, precise */}
           {showGrid && (
             <div className="absolute inset-0 pointer-events-none">
@@ -760,9 +786,9 @@ function App() {
   return (
     <DndContext onDragStart={handleDragStart} onDragMove={handleDragMove} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="min-h-screen flex flex-col bg-black">
-        {/* Glasses Display - sticky at top */}
+        {/* Glasses Display */}
         <div
-          className={`bg-black flex justify-center items-center gap-2 sm:gap-3 sticky top-0 z-40 transition-all duration-300 ${
+          className={`bg-black flex justify-center items-center gap-2 sm:gap-3 transition-all duration-300 ${
             showControls ? 'p-4 sm:p-6' : 'p-4 sm:p-8 flex-1'
           }`}
         >
@@ -775,10 +801,10 @@ function App() {
           </div>
         </div>
 
-        {/* Toggle button - sticky below glasses */}
+        {/* Toggle button */}
         <button
           onClick={() => setShowControls(!showControls)}
-          className="bg-zinc-900 border-t border-zinc-800 py-2 px-4 text-zinc-500 text-xs font-mono flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors sticky top-[200px] sm:top-[180px] z-30"
+          className="bg-zinc-900 border-t border-zinc-800 py-2 px-4 text-zinc-500 text-xs font-mono flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors"
         >
           <span>{showControls ? '▼ Hide Controls' : '▲ Show Controls'}</span>
           <span className="text-zinc-600">L:{leftWidgets.length} R:{rightWidgets.length}</span>
