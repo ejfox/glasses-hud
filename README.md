@@ -73,11 +73,12 @@ npx gh-pages -d dist
 
 ## Usage
 
-1. Select which **eye** (left or right lens)
-2. Choose a **widget type** from the categorized dropdown
-3. Pick a **position** (9 options: corners, edges, center)
-4. Click **Add Widget**
-5. Hide controls to preview fullscreen
+1. **Drag** a widget from the bento grid palette
+2. **Drop** onto left or right lens (ghost preview shows position)
+3. **Drag placed widgets** to reposition (snaps to 5% grid with anime.js)
+4. **Hover + ×** to delete widgets
+5. **Show Grid** reveals Swiss-style alignment guides
+6. **Hide Controls** for fullscreen preview
 
 ## Adding New Widgets
 
@@ -165,8 +166,9 @@ When walking:
 - **React 19** - UI framework
 - **Vite** - Build tool
 - **Tailwind CSS v4** - Styling
-- **shadcn/ui** - Component library (Select, Button, Input)
-- **Radix UI** - Accessible primitives
+- **shadcn/ui** - Component library (Button, Input)
+- **@dnd-kit** - Drag and drop from palette to lens
+- **anime.js** - Smooth grid-snap animations
 
 ## License
 
